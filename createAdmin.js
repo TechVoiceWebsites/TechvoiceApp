@@ -1,12 +1,18 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const dns = require('dns');
 const User = require('./models/User');
+
+// Help resolve SRV records on systems with DNS issues
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 dotenv.config();
 
 const createAdmin = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI);
+        await mongoose.connect(process.env.MONGO_URI, {
+            serverSelectionTimeoutMS: 5000
+        });
         console.log('Connected to DB');
 
         const adminData = {
