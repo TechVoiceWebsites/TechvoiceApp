@@ -21,11 +21,14 @@ app.use('/api/leave', require('./routes/leaveRoutes'));
 app.use('/api/payslip', require('./routes/payslipRoutes'));
 
 // Serve Uploads
-// Serve Uploads
 const fs = require('fs');
 const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+try {
+    if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+    }
+} catch (err) {
+    console.warn('Could not create uploads directory (expected in read-only environments like Vercel)');
 }
 
 app.use('/uploads', (req, res, next) => {
@@ -41,18 +44,22 @@ app.get('/', (req, res) => {
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 
-mongoose.connect(MONGO_URI)
-    .then(() => {
-        console.log('MongoDB Connected');
-        // Vercel handles the listening, but we still need this for local dev
-        if (process.env.NODE_ENV !== 'production') {
-            app.listen(PORT, () => {
-                console.log(`Server running on port ${PORT}`);
-            });
-        }
-    })
-    .catch(err => {
-        console.error('Database connection error:', err);
-    });
+if (!MONGO_URI) {
+    console.error('MONGO_URI is missing from environment variables!');
+} else {
+    mongoose.connect(MONGO_URI)
+        .then(() => {
+            console.log('MongoDB Connected');
+            // Vercel handles the listening, but we still need this for local dev
+            if (process.env.NODE_ENV !== 'production') {
+                app.listen(PORT, () => {
+                    console.log(`Server running on port ${PORT}`);
+                });
+            }
+        })
+        .catch(err => {
+            console.error('Database connection error:', err);
+        });
+}
 
 module.exports = app;
