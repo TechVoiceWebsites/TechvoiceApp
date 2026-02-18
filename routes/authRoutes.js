@@ -9,7 +9,11 @@ const fs = require('fs');
 // Configure Multer for Employee Documents
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/');
+        const dir = path.join(__dirname, '..', 'uploads');
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
     },
     filename: (req, file, cb) => {
         const decodedName = decodeURIComponent(file.originalname);
@@ -35,7 +39,7 @@ const upload = multer({
 // Configure Multer for Profile Photos
 const profileStorage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dir = 'uploads/profile/';
+        const dir = path.join(__dirname, '..', 'uploads', 'profile');
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }

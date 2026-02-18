@@ -103,20 +103,30 @@ exports.createUser = async (req, res) => {
 
         // Create Employee Folder Structure
         const fullName = `${firstName} ${lastName}`.trim();
-        const userDir = path.join('uploads', 'profile', fullName);
+        const uploadBase = path.join(__dirname, '..', 'uploads');
+        const userDir = path.join(uploadBase, 'profile', fullName);
         const payslipDir = path.join(userDir, 'payslip');
 
-        if (!fs.existsSync(payslipDir)) {
-            fs.mkdirSync(payslipDir, { recursive: true });
+        try {
+            if (!fs.existsSync(payslipDir)) {
+                fs.mkdirSync(payslipDir, { recursive: true });
+            }
+        } catch (dirErr) {
+            console.error(`Directory creation error: ${dirErr.message}`);
+            return res.status(500).json({ message: `Failed to create employee folder: ${dirErr.message}` });
         }
 
         // Helper for robust file movement
         const moveFile = (oldPath, newPath) => {
             try {
+                // Ensure the source exists (multer path)
+                if (!fs.existsSync(oldPath)) {
+                    throw new Error(`Source file not found: ${oldPath}`);
+                }
                 fs.copyFileSync(oldPath, newPath);
                 fs.unlinkSync(oldPath);
             } catch (err) {
-                console.error(`File move error: ${err.message}`);
+                console.error(`File move error from ${oldPath} to ${newPath}: ${err.message}`);
                 throw err;
             }
         };
@@ -127,7 +137,13 @@ exports.createUser = async (req, res) => {
             const file = req.files['aadhaar'][0];
             const newFilename = file.filename;
             const newPath = path.join(userDir, newFilename);
-            moveFile(file.path, newPath);
+            try {
+                moveFile(file.path, newPath);
+            } catch (err) {
+                return res.status(500).json({
+                    message: `Failed to save Aadhaar: ${err.message.includes('read-only') ? 'Filesystem is read-only (Vercel).' : err.message}`
+                });
+            }
             aadhaarUrl = `uploads/profile/${fullName}/${newFilename}`;
         }
 
@@ -136,7 +152,13 @@ exports.createUser = async (req, res) => {
             const file = req.files['pan'][0];
             const newFilename = file.filename;
             const newPath = path.join(userDir, newFilename);
-            moveFile(file.path, newPath);
+            try {
+                moveFile(file.path, newPath);
+            } catch (err) {
+                return res.status(500).json({
+                    message: `Failed to save PAN: ${err.message.includes('read-only') ? 'Filesystem is read-only (Vercel).' : err.message}`
+                });
+            }
             panUrl = `uploads/profile/${fullName}/${newFilename}`;
         }
 
@@ -259,9 +281,18 @@ exports.uploadProfileImage = async (req, res) => {
         }
 
         // Move file to structured employee folder
-        const userDir = path.join('uploads', 'profile', user.name);
-        if (!fs.existsSync(userDir)) {
-            fs.mkdirSync(userDir, { recursive: true });
+        const uploadBase = path.join(__dirname, '..', 'uploads');
+        const userDir = path.join(uploadBase, 'profile', user.name);
+
+        try {
+            if (!fs.existsSync(userDir)) {
+                fs.mkdirSync(userDir, { recursive: true });
+            }
+        } catch (dirErr) {
+            console.error(`Directory creation error: ${dirErr.message}`);
+            return res.status(500).json({
+                message: `Failed to create profile folder on server. Note: Local storage is not supported on Vercel. Error: ${dirErr.message}`
+            });
         }
 
         const oldPath = req.file.path;
@@ -269,11 +300,16 @@ exports.uploadProfileImage = async (req, res) => {
 
         // Safer file movement
         try {
+            if (!fs.existsSync(oldPath)) {
+                throw new Error(`Upload source not found: ${oldPath}`);
+            }
             fs.copyFileSync(oldPath, newPath);
             fs.unlinkSync(oldPath);
         } catch (err) {
             console.error(`Profile image move error: ${err.message}`);
-            throw err;
+            return res.status(500).json({
+                message: `Failed to save profile image. ${err.message.includes('read-only') ? 'Server filesystem is read-only (e.g. Vercel).' : err.message}`
+            });
         }
 
         user.profileImageUrl = `uploads/profile/${user.name}/${req.file.filename}`;
