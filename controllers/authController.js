@@ -110,22 +110,33 @@ exports.createUser = async (req, res) => {
             fs.mkdirSync(payslipDir, { recursive: true });
         }
 
+        // Helper for robust file movement
+        const moveFile = (oldPath, newPath) => {
+            try {
+                fs.copyFileSync(oldPath, newPath);
+                fs.unlinkSync(oldPath);
+            } catch (err) {
+                console.error(`File move error: ${err.message}`);
+                throw err;
+            }
+        };
+
         // Handle File Movement and URLs
         let aadhaarUrl = null;
         if (req.files['aadhaar']) {
-            const oldPath = req.files['aadhaar'][0].path;
-            const newFilename = req.files['aadhaar'][0].filename;
+            const file = req.files['aadhaar'][0];
+            const newFilename = file.filename;
             const newPath = path.join(userDir, newFilename);
-            fs.renameSync(oldPath, newPath);
+            moveFile(file.path, newPath);
             aadhaarUrl = `uploads/profile/${fullName}/${newFilename}`;
         }
 
         let panUrl = null;
         if (req.files['pan']) {
-            const oldPath = req.files['pan'][0].path;
-            const newFilename = req.files['pan'][0].filename;
+            const file = req.files['pan'][0];
+            const newFilename = file.filename;
             const newPath = path.join(userDir, newFilename);
-            fs.renameSync(oldPath, newPath);
+            moveFile(file.path, newPath);
             panUrl = `uploads/profile/${fullName}/${newFilename}`;
         }
 
@@ -255,7 +266,15 @@ exports.uploadProfileImage = async (req, res) => {
 
         const oldPath = req.file.path;
         const newPath = path.join(userDir, req.file.filename);
-        fs.renameSync(oldPath, newPath);
+
+        // Safer file movement
+        try {
+            fs.copyFileSync(oldPath, newPath);
+            fs.unlinkSync(oldPath);
+        } catch (err) {
+            console.error(`Profile image move error: ${err.message}`);
+            throw err;
+        }
 
         user.profileImageUrl = `uploads/profile/${user.name}/${req.file.filename}`;
         await user.save();

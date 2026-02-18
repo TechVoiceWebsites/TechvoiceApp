@@ -21,6 +21,27 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
     return R * c;
 };
 
+// Helper to get IST date and time
+const getISTDateTime = () => {
+    const now = new Date();
+    // Use Intl.DateTimeFormat with Asia/Kolkata timezone
+    const dateStr = now.toLocaleDateString('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).split('/').reverse().join('-'); // YYYY-MM-DD
+
+    const timeStr = now.toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    });
+
+    return { date: dateStr, time: timeStr };
+};
+
 // Sign In
 exports.signIn = async (req, res) => {
     try {
@@ -31,7 +52,7 @@ exports.signIn = async (req, res) => {
             return res.status(403).json({ message: 'You are not at the i Techvoice office.' });
         }
 
-        const today = new Date().toISOString().split('T')[0];
+        const { date: today, time: currentTime } = getISTDateTime();
         const existing = await Attendance.findOne({ userId: req.user._id, date: today });
 
         if (existing) {
@@ -41,7 +62,7 @@ exports.signIn = async (req, res) => {
         const attendance = await Attendance.create({
             userId: req.user._id,
             date: today,
-            signInTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            signInTime: currentTime,
             locationMatches: true,
             status: 'Present',
             coordinates: { latitude, longitude }
@@ -63,7 +84,7 @@ exports.signOut = async (req, res) => {
             return res.status(403).json({ message: 'You are not at the i Techvoice office.' });
         }
 
-        const today = new Date().toISOString().split('T')[0];
+        const { date: today, time: currentTime } = getISTDateTime();
         const attendance = await Attendance.findOne({ userId: req.user._id, date: today });
 
         if (!attendance) {
@@ -74,7 +95,7 @@ exports.signOut = async (req, res) => {
             return res.status(400).json({ message: 'Already signed out for today' });
         }
 
-        attendance.signOutTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        attendance.signOutTime = currentTime;
         await attendance.save();
 
         res.json(attendance);
