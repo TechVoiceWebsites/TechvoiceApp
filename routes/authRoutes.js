@@ -7,10 +7,15 @@ const streamifier = require('streamifier');
 const cloudinary = require('cloudinary').v2;
 
 // Configure Cloudinary once at startup
+const maskSecret = (secret) => {
+    if (!secret) return "NOT_SET";
+    return `${secret.substring(0, 4)}...${secret.substring(secret.length - 4)}`;
+};
+
 console.log('--- CLOUDINARY CONFIG START ---');
 console.log('CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
 console.log('API_KEY:', process.env.CLOUDINARY_API_KEY);
-console.log('API_SECRET_SET:', !!process.env.CLOUDINARY_API_SECRET);
+console.log('API_SECRET_MASK:', maskSecret(process.env.CLOUDINARY_API_SECRET));
 console.log('------------------------------');
 
 const BACKEND_VERSION = "2.1-DirectUpload"; // Used to verify deployment

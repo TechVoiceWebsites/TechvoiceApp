@@ -5,11 +5,16 @@ const streamifier = require('streamifier');
 const { protect, admin } = require('../middleware/authMiddleware');
 const { uploadPayslip, getMyPayslips, getPayslipsById, downloadPayslip } = require('../controllers/payslipController');
 const cloudinary = require('cloudinary').v2;
+const maskSecret = (secret) => {
+    if (!secret) return "NOT_SET";
+    return `${secret.substring(0, 4)}...${secret.substring(secret.length - 4)}`;
+};
+
 // Configure Cloudinary once
 console.log('--- CLOUDINARY CONFIG (PAYSLIP) START ---');
 console.log('CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
 console.log('API_KEY:', process.env.CLOUDINARY_API_KEY);
-console.log('API_SECRET_SET:', !!process.env.CLOUDINARY_API_SECRET);
+console.log('API_SECRET_MASK:', maskSecret(process.env.CLOUDINARY_API_SECRET));
 console.log('-----------------------------------------');
 
 const BACKEND_VERSION = "2.1-DirectUpload";
