@@ -6,63 +6,45 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Configure Multer for Employee Documents
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = path.join(__dirname, '..', 'uploads');
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        const decodedName = decodeURIComponent(file.originalname);
-        const sanitizedName = decodedName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9.\-_]/g, '');
-        cb(null, `doc-${Date.now()}-${sanitizedName}`);
-    }
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const upload = multer({
-    storage,
-    fileFilter: (req, file, cb) => {
-        const filetypes = /jpeg|jpg|png|pdf/;
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = filetypes.test(file.mimetype);
-        if (extname && mimetype) {
-            return cb(null, true);
-        } else {
-            cb('Error: Only images and PDFs are allowed!');
+// Configure Cloudinary Storage for Employee Documents
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'techvoice/documents',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'pdf'],
+        public_id: (req, file) => {
+            const decodedName = decodeURIComponent(file.originalname);
+            const sanitizedName = decodedName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9.\-_]/g, '').split('.')[0];
+            return `doc-${Date.now()}-${sanitizedName}`;
         }
     }
 });
 
-// Configure Multer for Profile Photos
-const profileStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = path.join(__dirname, '..', 'uploads', 'profile');
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        cb(null, `profile-${req.user._id}-${Date.now()}${path.extname(file.originalname)}`);
+const upload = multer({ storage });
+
+// Configure Cloudinary Storage for Profile Photos
+const profileStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'techvoice/profiles',
+        allowed_formats: ['jpg', 'png', 'jpeg'],
+        public_id: (req, file) => `profile-${req.user._id}-${Date.now()}`
     }
 });
 
 const uploadProfile = multer({
     storage: profileStorage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-    fileFilter: (req, file, cb) => {
-        const filetypes = /jpeg|jpg|png/;
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = filetypes.test(file.mimetype);
-        if (extname && mimetype) {
-            return cb(null, true);
-        } else {
-            cb('Error: Only images (jpeg, jpg, png) are allowed!');
-        }
-    }
+    limits: { fileSize: 5 * 1024 * 1024 }
 });
 
 router.post('/login', login);

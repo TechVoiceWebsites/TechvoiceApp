@@ -101,66 +101,11 @@ exports.createUser = async (req, res) => {
             return res.status(400).json({ message: 'Email already exists' });
         }
 
-        // Create Employee Folder Structure
+        // Handle File URLs from Cloudinary
+        const aadhaarUrl = req.files['aadhaar'] ? req.files['aadhaar'][0].path : null;
+        const panUrl = req.files['pan'] ? req.files['pan'][0].path : null;
+
         const fullName = `${firstName} ${lastName}`.trim();
-        const uploadBase = path.join(__dirname, '..', 'uploads');
-        const userDir = path.join(uploadBase, 'profile', fullName);
-        const payslipDir = path.join(userDir, 'payslip');
-
-        try {
-            if (!fs.existsSync(payslipDir)) {
-                fs.mkdirSync(payslipDir, { recursive: true });
-            }
-        } catch (dirErr) {
-            console.error(`Directory creation error: ${dirErr.message}`);
-            return res.status(500).json({ message: `Failed to create employee folder: ${dirErr.message}` });
-        }
-
-        // Helper for robust file movement
-        const moveFile = (oldPath, newPath) => {
-            try {
-                // Ensure the source exists (multer path)
-                if (!fs.existsSync(oldPath)) {
-                    throw new Error(`Source file not found: ${oldPath}`);
-                }
-                fs.copyFileSync(oldPath, newPath);
-                fs.unlinkSync(oldPath);
-            } catch (err) {
-                console.error(`File move error from ${oldPath} to ${newPath}: ${err.message}`);
-                throw err;
-            }
-        };
-
-        // Handle File Movement and URLs
-        let aadhaarUrl = null;
-        if (req.files['aadhaar']) {
-            const file = req.files['aadhaar'][0];
-            const newFilename = file.filename;
-            const newPath = path.join(userDir, newFilename);
-            try {
-                moveFile(file.path, newPath);
-            } catch (err) {
-                return res.status(500).json({
-                    message: `Failed to save Aadhaar: ${err.message.includes('read-only') ? 'Filesystem is read-only (Vercel).' : err.message}`
-                });
-            }
-            aadhaarUrl = `uploads/profile/${fullName}/${newFilename}`;
-        }
-
-        let panUrl = null;
-        if (req.files['pan']) {
-            const file = req.files['pan'][0];
-            const newFilename = file.filename;
-            const newPath = path.join(userDir, newFilename);
-            try {
-                moveFile(file.path, newPath);
-            } catch (err) {
-                return res.status(500).json({
-                    message: `Failed to save PAN: ${err.message.includes('read-only') ? 'Filesystem is read-only (Vercel).' : err.message}`
-                });
-            }
-            panUrl = `uploads/profile/${fullName}/${newFilename}`;
-        }
 
         const user = await User.create({
             empId,
@@ -182,14 +127,6 @@ exports.createUser = async (req, res) => {
         });
 
         if (user) {
-            // Create details.json
-            const detailsPath = path.join(userDir, 'details.json');
-            const userDetails = {
-                ...user.toObject(),
-                password: '***' // Hide password in JSON
-            };
-            fs.writeFileSync(detailsPath, JSON.stringify(userDetails, null, 2));
-
             res.status(201).json({
                 _id: user._id,
                 empId: user.empId,
@@ -272,47 +209,8 @@ exports.uploadProfileImage = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Delete old profile image if it exists
-        if (user.profileImageUrl) {
-            const oldPath = path.join(__dirname, '..', user.profileImageUrl);
-            if (fs.existsSync(oldPath)) {
-                fs.unlinkSync(oldPath);
-            }
-        }
-
-        // Move file to structured employee folder
-        const uploadBase = path.join(__dirname, '..', 'uploads');
-        const userDir = path.join(uploadBase, 'profile', user.name);
-
-        try {
-            if (!fs.existsSync(userDir)) {
-                fs.mkdirSync(userDir, { recursive: true });
-            }
-        } catch (dirErr) {
-            console.error(`Directory creation error: ${dirErr.message}`);
-            return res.status(500).json({
-                message: `Failed to create profile folder on server. Note: Local storage is not supported on Vercel. Error: ${dirErr.message}`
-            });
-        }
-
-        const oldPath = req.file.path;
-        const newPath = path.join(userDir, req.file.filename);
-
-        // Safer file movement
-        try {
-            if (!fs.existsSync(oldPath)) {
-                throw new Error(`Upload source not found: ${oldPath}`);
-            }
-            fs.copyFileSync(oldPath, newPath);
-            fs.unlinkSync(oldPath);
-        } catch (err) {
-            console.error(`Profile image move error: ${err.message}`);
-            return res.status(500).json({
-                message: `Failed to save profile image. ${err.message.includes('read-only') ? 'Server filesystem is read-only (e.g. Vercel).' : err.message}`
-            });
-        }
-
-        user.profileImageUrl = `uploads/profile/${user.name}/${req.file.filename}`;
+        // Update user with Cloudinary URL
+        user.profileImageUrl = req.file.path;
         await user.save();
 
         res.json({
