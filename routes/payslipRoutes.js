@@ -4,7 +4,6 @@ const multer = require('multer');
 const streamifier = require('streamifier');
 const { protect, admin } = require('../middleware/authMiddleware');
 const { uploadPayslip, getMyPayslips, getPayslipsById, downloadPayslip } = require('../controllers/payslipController');
-
 const cloudinary = require('cloudinary').v2;
 
 // Configure Cloudinary
@@ -14,37 +13,37 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Use memory storage (no temp files, works on Vercel)
-const memStorage = multer.memoryStorage();
-const upload = multer({ storage: memStorage });
+// Memory storage (Vercel-safe, no temp files)
+const pdfFilter = (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') cb(null, true);
+    else cb(new Error('Only PDF files are allowed'), false);
+};
+const upload = multer({ storage: multer.memoryStorage(), fileFilter: pdfFilter });
 
-// Helper: upload a buffer directly to Cloudinary using upload_stream
-const uploadToCloudinary = (buffer, options) => {
-    return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(options, (error, result) => {
-            if (error) return reject(error);
+// Helper: stream buffer → Cloudinary
+const uploadToCloudinary = (buffer, options) =>
+    new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
+            if (err) return reject(err);
             resolve(result);
         });
         streamifier.createReadStream(buffer).pipe(stream);
     });
-};
 
-// Middleware: handle payslip upload to Cloudinary
+// Middleware: upload payslip to Cloudinary
 const handlePayslipUpload = async (req, res, next) => {
     try {
         if (!req.file) return next();
-
-        const decodedName = decodeURIComponent(req.file.originalname);
-        const sanitizedName = decodedName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9.\-_]/g, '').split('.')[0];
+        const sanitizedName = decodeURIComponent(req.file.originalname)
+            .replace(/\s+/g, '_')
+            .replace(/[^a-zA-Z0-9.\-_]/g, '')
+            .split('.')[0];
         const publicId = `payslip-${Date.now()}-${sanitizedName}`;
-
         const result = await uploadToCloudinary(req.file.buffer, {
             folder: 'techvoice/payslips',
             public_id: publicId,
-            resource_type: 'auto'
+            resource_type: 'raw'   // ← no allowed_formats (removes it from sig)
         });
-
-        // Attach result to file object for controller compatibility
         req.file.path = result.secure_url;
         req.file.cloudinaryId = result.public_id;
         next();
