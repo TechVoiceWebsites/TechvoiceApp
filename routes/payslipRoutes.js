@@ -5,29 +5,31 @@ const path = require('path');
 const { protect, admin } = require('../middleware/authMiddleware');
 const { uploadPayslip, getMyPayslips, getPayslipsById, downloadPayslip } = require('../controllers/payslipController');
 
-// Multer Config
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        // Decode in case it's and URL-encoded name, then replace spaces with underscores and remove special chars
-        const decodedName = decodeURIComponent(file.originalname);
-        const sanitizedParams = decodedName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9.\-_]/g, '');
-        cb(null, `${Date.now()}-${sanitizedParams}`);
-    }
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const upload = multer({
-    storage: storage,
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'application/pdf') {
-            cb(null, true);
-        } else {
-            cb(new Error('Only PDF files are allowed'), false);
+// Configure Cloudinary Storage for Payslips
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'techvoice/payslips',
+        allowed_formats: ['pdf'],
+        public_id: (req, file) => {
+            const decodedName = decodeURIComponent(file.originalname);
+            const sanitizedName = decodedName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9.\-_]/g, '').split('.')[0];
+            return `payslip-${Date.now()}-${sanitizedName}`;
         }
     }
 });
+
+const upload = multer({ storage: storage });
 
 // Routes
 router.post('/upload', protect, admin, upload.single('payslip'), uploadPayslip);

@@ -18,22 +18,12 @@ exports.uploadPayslip = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Move file to structured employee payslip folder
-        const userDir = path.join('uploads', 'profile', user.name);
-        const payslipDir = path.join(userDir, 'payslip');
-        if (!fs.existsSync(payslipDir)) {
-            fs.mkdirSync(payslipDir, { recursive: true });
-        }
-
-        const oldPath = file.path;
-        const newPath = path.join(payslipDir, file.filename);
-        fs.renameSync(oldPath, newPath);
-
+        // Update with Cloudinary URL
         const payslip = await Payslip.create({
             user: userId,
             month,
             year,
-            fileUrl: `uploads/profile/${user.name}/payslip/${file.filename}`
+            fileUrl: file.path
         });
 
         res.status(201).json({ message: 'Payslip uploaded successfully', payslip });
@@ -63,7 +53,7 @@ exports.getPayslipsByUser = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-// Download Payslip (Secure)
+// Download Payslip (Secure Redirect to Cloudinary)
 exports.downloadPayslip = async (req, res) => {
     try {
         const payslip = await Payslip.findById(req.params.id);
@@ -77,12 +67,11 @@ exports.downloadPayslip = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to download this payslip' });
         }
 
-        const filePath = path.join(__dirname, '..', payslip.fileUrl);
-
-        if (fs.existsSync(filePath)) {
-            res.download(filePath);
+        // For Cloudinary, we just redirect or send the URL
+        if (payslip.fileUrl) {
+            res.redirect(payslip.fileUrl);
         } else {
-            res.status(404).json({ message: 'File not found on server' });
+            res.status(404).json({ message: 'Payslip URL not found' });
         }
     } catch (error) {
         res.status(500).json({ message: error.message });
