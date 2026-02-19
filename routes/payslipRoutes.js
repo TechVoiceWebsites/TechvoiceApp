@@ -4,9 +4,15 @@ const multer = require('multer');
 const streamifier = require('streamifier');
 const { protect, admin } = require('../middleware/authMiddleware');
 const { uploadPayslip, getMyPayslips, getPayslipsById, downloadPayslip } = require('../controllers/payslipController');
-const cloudinary = require('cloudinary').v2;
+// Configure Cloudinary once
+console.log('--- CLOUDINARY CONFIG (PAYSLIP) START ---');
+console.log('CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
+console.log('API_KEY:', process.env.CLOUDINARY_API_KEY);
+console.log('API_SECRET_SET:', !!process.env.CLOUDINARY_API_SECRET);
+console.log('-----------------------------------------');
 
-// Configure Cloudinary
+const BACKEND_VERSION = "2.1-DirectUpload";
+
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -49,7 +55,10 @@ const handlePayslipUpload = async (req, res, next) => {
         next();
     } catch (error) {
         console.error('Payslip upload error:', error);
-        return res.status(500).json({ message: 'Payslip upload failed: ' + error.message });
+        return res.status(500).json({
+            message: `[${BACKEND_VERSION}] Payslip upload failed: ` + error.message,
+            debug_info: { folder: 'techvoice/payslips' }
+        });
     }
 };
 

@@ -7,13 +7,19 @@ const streamifier = require('streamifier');
 const cloudinary = require('cloudinary').v2;
 
 // Configure Cloudinary once at startup
+console.log('--- CLOUDINARY CONFIG START ---');
+console.log('CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
+console.log('API_KEY:', process.env.CLOUDINARY_API_KEY);
+console.log('API_SECRET_SET:', !!process.env.CLOUDINARY_API_SECRET);
+console.log('------------------------------');
+
+const BACKEND_VERSION = "2.1-DirectUpload"; // Used to verify deployment
+
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
-
-console.log('Cloudinary API Key:', process.env.CLOUDINARY_API_KEY, '| Cloud:', process.env.CLOUDINARY_CLOUD_NAME);
 
 // ── Memory storage (Vercel-safe, no temp files) ──────────────────────────────
 const imageFilter = (req, file, cb) => {
@@ -68,7 +74,10 @@ const handleDocumentUpload = async (req, res, next) => {
         next();
     } catch (error) {
         console.error('Document upload error:', error);
-        return res.status(500).json({ message: 'File upload failed: ' + error.message });
+        return res.status(500).json({
+            message: `[${BACKEND_VERSION}] File upload failed: ` + error.message,
+            debug_info: { folder: 'techvoice/documents' }
+        });
     }
 };
 
@@ -87,7 +96,10 @@ const handleProfileUpload = async (req, res, next) => {
         next();
     } catch (error) {
         console.error('Profile image upload error:', error);
-        return res.status(500).json({ message: 'Profile image upload failed: ' + error.message });
+        return res.status(500).json({
+            message: `[${BACKEND_VERSION}] Profile image upload failed: ` + error.message,
+            debug_info: { folder: 'techvoice/profiles' }
+        });
     }
 };
 
