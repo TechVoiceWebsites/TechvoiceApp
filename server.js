@@ -14,6 +14,11 @@ app.use(cors());
 const path = require('path');
 
 // Routes
+console.log('--- Environment Check ---');
+console.log('MONGO_URI exists:', !!process.env.MONGO_URI);
+console.log('CLOUDINARY_CLOUD_NAME exists:', !!process.env.CLOUDINARY_CLOUD_NAME);
+console.log('------------------------');
+
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));

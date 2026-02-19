@@ -101,9 +101,9 @@ exports.createUser = async (req, res) => {
             return res.status(400).json({ message: 'Email already exists' });
         }
 
-        // Handle File URLs from Cloudinary
-        const aadhaarUrl = req.files['aadhaar'] ? req.files['aadhaar'][0].path : null;
-        const panUrl = req.files['pan'] ? req.files['pan'][0].path : null;
+        // Handle File URLs from Cloudinary (Safe access)
+        const aadhaarUrl = (req.files && req.files['aadhaar']) ? req.files['aadhaar'][0].path : null;
+        const panUrl = (req.files && req.files['pan']) ? req.files['pan'][0].path : null;
 
         const fullName = `${firstName} ${lastName}`.trim();
 
@@ -223,7 +223,7 @@ exports.uploadProfileImage = async (req, res) => {
     }
 };
 
-// Delete Profile Image
+// Delete Profile Image (Cleanup for Cloudinary)
 exports.deleteProfileImage = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
@@ -232,10 +232,8 @@ exports.deleteProfileImage = async (req, res) => {
         }
 
         if (user.profileImageUrl) {
-            const filePath = path.join(__dirname, '..', user.profileImageUrl);
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-            }
+            // Note: In Cloudinary transition, we just clear the URL in the DB for now.
+            // Full deletion would need cloudinary.uploader.destroy(public_id).
             user.profileImageUrl = null;
             await user.save();
         }
