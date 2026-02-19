@@ -4,6 +4,7 @@ const multer = require('multer');
 const streamifier = require('streamifier');
 const { protect, admin } = require('../middleware/authMiddleware');
 const { uploadPayslip, getMyPayslips, getPayslipsById, downloadPayslip } = require('../controllers/payslipController');
+const cloudinary = require('cloudinary').v2;
 // Configure Cloudinary once
 console.log('--- CLOUDINARY CONFIG (PAYSLIP) START ---');
 console.log('CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
