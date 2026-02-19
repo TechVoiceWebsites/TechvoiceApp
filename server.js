@@ -25,6 +25,19 @@ app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/leave', require('./routes/leaveRoutes'));
 app.use('/api/payslip', require('./routes/payslipRoutes'));
 
+// Global Error Handler (MUST BE LAST)
+app.use((err, req, res, next) => {
+    console.error('--- GLOBAL ERROR HANDLER ---');
+    console.error('Error Status:', err.status || 500);
+    console.error('Error Message:', err.message);
+    if (err.stack) console.error(err.stack);
+
+    res.status(err.status || 500).json({
+        message: err.message || 'An unexpected server error occurred',
+        error: process.env.NODE_ENV === 'development' ? err : {}
+    });
+});
+
 // Serve Uploads
 const fs = require('fs');
 const uploadDir = path.join(__dirname, 'uploads');

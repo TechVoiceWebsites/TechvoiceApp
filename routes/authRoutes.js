@@ -10,11 +10,17 @@ const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 // Configure Cloudinary
+if (!process.env.CLOUDINARY_CLOUD_NAME) {
+    console.error('WARNING: Cloudinary environment variables are missing!');
+}
+
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
+
+console.log('Cloudinary configured for cloud:', process.env.CLOUDINARY_CLOUD_NAME);
 
 // Configure Cloudinary Storage for Employee Documents
 const storage = new CloudinaryStorage({
